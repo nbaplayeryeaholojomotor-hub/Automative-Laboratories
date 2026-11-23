@@ -34,3 +34,12 @@ datos sintéticos no prueban nada sobre biología real.
 
 **Pendiente / sin verificar:** resultados de `scripts/05_control.py` (comparación de controladores,
 aún ejecutándose al hacer este commit); parámetros ILUSTRATIVOS, no medidos; dataset real publicado.
+
+### Corrección (fase 5)
+El PID inicial (Kp=0.04, Ki=0.015) estaba mal ajustado: IAE 13.0 frente a 4.35 con Kp=0.1, Ki=0.1
+(barrido en `scripts/05b_tune_pid.py`, semillas de entrenamiento 100-103, evaluación en 0-5).
+Con el PID ajustado la ventaja del MPC adaptativo sobre el PID es mucho menor que en la primera
+tabla. **La tabla final de `scripts/05_control.py` se está regenerando con el PID ajustado;
+la figura `docs/figures/fase5_control.png` de este commit puede ser aún la antigua.**
+Observaciones ya verificadas: sesgo +15 % en el sensor engaña a todos los controladores
+(error 0.3-0.56 g/L); la bandera "lavado" (X<0.5) no se activa en 20 h porque el lavado es lento.

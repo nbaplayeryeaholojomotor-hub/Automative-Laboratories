@@ -16,6 +16,7 @@ NOMINAL = ReactorParams(mu_max=0.5, Ks=0.5, Y=0.5, S_in=10.0)  # ILUSTRATIVO
 TS = 0.25            # [h] periodo de muestreo
 REL_X, SD_S, S_EVERY = 0.02, 0.1, 4  # ruido OD 2 %, ruido S 0.1 g/L, S cada 1 h
 D_MAX = 0.55         # capacidad máxima de la bomba [1/h]
+PID_GAINS = dict(Kp=0.1, Ki=0.1, Kd=0.0)  # ajustados por barrido: scripts/05b_tune_pid.py
 
 
 @dataclass
@@ -50,7 +51,7 @@ def run_closed_loop(controller, sc, seed, ekf_factory=make_ekf):
     sS = SubstrateSensor(SD_S, S_EVERY, rng)
     ekf = ekf_factory(X0)
     mon = Monitor()
-    pid = PID(Kp=0.04, Ki=0.015, Kd=0.0, Ts=TS, u_min=0.0, u_max=D_MAX, u0=sc.D0)
+    pid = PID(**PID_GAINS, Ts=TS, u_min=0.0, u_max=D_MAX, u0=sc.D0)
     mpc = MPC(NOMINAL, TS, u_min=0.0, u_max=D_MAX)
     D_prev = sc.D0
     n = int(round(sc.T / TS))
