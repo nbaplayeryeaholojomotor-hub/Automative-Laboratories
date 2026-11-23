@@ -42,3 +42,42 @@ def fit_logistic(t, X, guess):
 
     lower, upper = [1e-6, 1e-9, 1e-6], [10.0, np.inf, np.inf]
     return tuple(least_squares(residuals, guess, bounds=(lower, upper)).x)
+
+
+def fit_monod(t, X, S, S0, sigma_X_rel, sigma_S, guess):
+    """Ajusta un batch de Monod a datos de biomasa X(t) y sustrato S(t).
+
+    Parámetros estimados: mu_max, Ks, Y, X0 (S0 se supone conocido: es la
+    receta del medio). Los residuos se ponderan por el ruido de cada sensor,
+    así X y S (unidades distintas) contribuyen de forma comparable.
+
+    Devuelve un dict con estimaciones, errores estándar e IC 95 % aproximados
+    (linealización: cov = s^2 (J^T J)^-1). Son una APROXIMACIÓN y pueden ser
+    poco fiables si el problema está mal condicionado.
+    """
+    from .models.monod import monod_batch
+    from .parameters import MonodParams
+
+    t, X, S = map(np.asarray, (t, X, S))
+
+    def model(theta):
+        mu_max, Ks, Y, X0 = theta
+        sim = simulate(monod_batch, MonodParams(mu_max, Ks, Y), [X0, S0], t[-1], 600)
+        return np.interp(t, sim.t, sim.y[0]), np.interp(t, sim.t, sim.y[1])
+
+    def residuals(theta):
+        Xm, Sm = model(theta)
+        rX = (np.log(np.maximum(Xm, 1e-12)) - np.log(X)) / sigma_X_rel
+        rS = (Sm - S) / sigma_S
+        return np.concatenate([rX, rS])
+
+    names = ["mu_max", "Ks", "Y", "X0"]
+    sol = least_squares(residuals, guess, bounds=([1e-3, 1e-4, 0.01, 1e-6], [5, 50, 2, 10]),
+                        x_scale=np.abs(guess))
+    n, k = sol.fun.size, len(names)
+    s2 = np.sum(sol.fun ** 2) / (n - k)
+    cov = s2 * np.linalg.pinv(sol.jac.T @ sol.jac)
+    se = np.sqrt(np.diag(cov))
+    return {"names": names, "est": sol.x, "se": se,
+            "ci95": np.c_[sol.x - 1.96 * se, sol.x + 1.96 * se],
+            "chi2_red": s2}
